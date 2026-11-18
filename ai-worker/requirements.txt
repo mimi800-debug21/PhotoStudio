@@ -1,0 +1,9 @@
+# Installed into the portable runtime during first-run setup (ai-worker sidecar).
+# torch/torchvision are installed separately with a CUDA index when available.
+torch>=2.0
+torchvision>=0.15
+realesrgan>=0.3
+basicsr>=1.4
+pillow>=10
+numpy>=1.24
+opencv-python-headless>=4.8

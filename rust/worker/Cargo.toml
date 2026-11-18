@@ -1,0 +1,27 @@
+[package]
+name = "photostudio-ai-worker"
+version = "0.1.0"
+edition = "2021"
+description = "PhotoStudio AI sidecar: manages the local Real-ESRGAN runtime (portable Python + models) and runs enhancement jobs. Speaks JSON-lines on stdio."
+license = "MIT"
+
+[lib]
+name = "ai_worker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ai-worker"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = "3"
+sha2 = "0.11"
+hex = "0.4"
+zip = "2"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
