@@ -69,7 +69,7 @@ export const api = {
     tile: number;
     fp16: boolean;
     outPath: string;
-  }) => invoke<string>("ai_enhance", { params }),
+  }) => invoke<string>("ai_enhance", params),
   aiCancelJob: (jobId: string) => invoke<void>("ai_cancel_job", { jobId }),
   aiOpenRuntimeDir: () => invoke<void>("ai_open_runtime_dir"),
   readExportBytes: (path: string) => invoke<number[]>("read_export_bytes", { path }),

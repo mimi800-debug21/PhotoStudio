@@ -2,7 +2,22 @@
 
 use kamadak_exif as exif;
 use serde::Serialize;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::Path;
+
+/// Read EXIF metadata from any file kamadak-exif understands (JPEG, TIFF-based
+/// RAW, PNG, WebP, ...). Returns `None` on any hard parse failure; non-fatal
+/// errors are tolerated (partial results kept) for robustness with quirky files.
+fn read_exif_container(path: &Path) -> Option<exif::Exif> {
+    let f = File::open(path).ok()?;
+    let mut reader = exif::Reader::new();
+    reader.continue_on_error(true);
+    match reader.read_from_container(&mut BufReader::new(f)) {
+        Ok(e) => Some(e),
+        Err(e) => e.distill_partial_result(|_| {}).ok(),
+    }
+}
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct ExifInfo {
@@ -66,12 +81,14 @@ pub fn normalize_datetime(s: &str) -> Option<String> {
 }
 
 fn format_exposure_time(value: &exif::Value) -> Option<String> {
-    let num = rational_f64(value, 0)?;
-    let den = rational_f64(value, 1)?;
-    if den <= 0.0 || num <= 0.0 {
+    // ExposureTime is a single RATIONAL (num/den packed in one Rational)
+    let v = match value {
+        exif::Value::Rational(rs) => rs.first().map(|r| r.to_f64())?,
+        _ => return None,
+    };
+    if v <= 0.0 {
         return None;
     }
-    let v = num / den;
     if v >= 1.0 {
         Some(format!("{:.1} s", v))
     } else {
@@ -111,10 +128,9 @@ fn gps_coord(value: &exif::Value, ref_ascii: Option<&String>) -> Option<f64> {
 /// Read EXIF from a file. Never fails hard: returns default (empty) info on any error.
 pub fn read_exif(path: &Path) -> ExifInfo {
     let mut info = ExifInfo::default();
-    let mut reader = exif::Reader::new();
-    let exif = match reader.read_from_file(path) {
-        Ok(e) => e,
-        Err(_) => return info,
+    let exif = match read_exif_container(path) {
+        Some(e) => e,
+        None => return info,
     };
     let mut make: Option<String> = None;
     let mut model: Option<String> = None;
@@ -180,6 +196,59 @@ pub fn read_exif(path: &Path) -> ExifInfo {
     info
 }
 
+fn field_u32(exif: &exif::Exif, tag: exif::Tag) -> Option<u32> {
+    for field in exif.fields() {
+        if field.tag == tag {
+            return match &field.value {
+                exif::Value::Short(v) => v.first().map(|&x| x as u32),
+                exif::Value::Long(v) => v.first().copied(),
+                _ => None,
+            };
+        }
+    }
+    None
+}
+
+/// Best-effort pixel dimensions of the *full-size* image from EXIF tags.
+pub fn pixel_dimensions(path: &Path) -> Option<(i64, i64)> {
+    let exif = read_exif_container(path)?;
+    let w = field_u32(&exif, exif::Tag::PixelXDimension).or_else(|| field_u32(&exif, exif::Tag::ImageWidth));
+    let h = field_u32(&exif, exif::Tag::PixelYDimension).or_else(|| field_u32(&exif, exif::Tag::ImageLength));
+    match (w, h) {
+        (Some(w), Some(h)) if w > 0 && h > 0 => Some((w as i64, h as i64)),
+        _ => None,
+    }
+}
+
+/// Extract the embedded JPEG preview/thumbnail stored in the EXIF thumbnail IFD.
+/// Works for JPEG files and TIFF-based RAW files (CR2, NEF, ARW, DNG, ...).
+pub fn read_thumbnail(path: &Path) -> Option<Vec<u8>> {
+    let exif = read_exif_container(path)?;
+    let off = exif.get_field(exif::Tag::JPEGInterchangeFormat, exif::In::THUMBNAIL)?;
+    let len = exif.get_field(exif::Tag::JPEGInterchangeFormatLength, exif::In::THUMBNAIL)?;
+    let to_usize = |v: &exif::Value| -> Option<usize> {
+        match v {
+            exif::Value::Long(v) => v.first().map(|&x| x as usize),
+            exif::Value::Short(v) => v.first().map(|&x| x as usize),
+            _ => None,
+        }
+    };
+    let o = to_usize(&off.value)?;
+    let l = to_usize(&len.value)?;
+    if l == 0 {
+        return None;
+    }
+    let buf = exif.buf();
+    if o + l <= buf.len() {
+        let slice = &buf[o..o + l];
+        // sanity: must look like a JPEG (FFD8 ... FFD9)
+        if slice.len() >= 4 && slice[0] == 0xFF && slice[1] == 0xD8 {
+            return Some(slice.to_vec());
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,5 +277,18 @@ mod tests {
         let lon = info.gps_lon.expect("gps lon");
         assert!((lat - (48.0 + 37.0 / 60.0 + 30.0 / 3600.0)).abs() < 1e-9);
         assert!((lon - (13.0 + 24.0 / 60.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn reads_embedded_thumbnail_and_dims() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/exif.jpg");
+        let thumb = read_thumbnail(&path).expect("fixture should carry an embedded JPEG thumbnail");
+        assert!(thumb.len() > 100);
+        assert_eq!(&thumb[0..2], &[0xFF, 0xD8]);
+        // decodable as JPEG
+        let img = image::load_from_memory(&thumb).expect("thumbnail must decode");
+        assert!(img.width() > 0 && img.height() > 0);
+        let dims = pixel_dimensions(&path);
+        assert!(dims.is_some(), "pixel dimensions should be readable from EXIF");
     }
 }
