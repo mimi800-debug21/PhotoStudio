@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+html.light {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply bg-neutral-950 text-neutral-200 antialiased;
+  font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+html.light body {
+  @apply bg-neutral-100 text-neutral-800;
+}
+
+/* Slim scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 120, 0.5) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  @apply bg-neutral-700 rounded-full;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+html.light *::-webkit-scrollbar-thumb {
+  @apply bg-neutral-400;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Range inputs */
+input[type="range"] {
+  @apply w-full accent-brand-500 cursor-pointer;
+}
+
+/* Thumbnail cell images */
+.thumb-img {
+  @apply w-full h-full object-cover select-none;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* Viewer image */
+.viewer-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Editor canvas */
+.editor-canvas-wrap {
+  @apply relative select-none overflow-hidden;
+  touch-action: none;
+}
+
+/* Crop overlay */
+.crop-rect {
+  @apply absolute border-2 border-brand-400 bg-brand-400/10;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  cursor: move;
+}
+
+/* Utility */
+.no-drag {
+  -webkit-user-drag: none;
+  user-select: none;
+}

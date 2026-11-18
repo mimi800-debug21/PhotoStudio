@@ -1,0 +1,22 @@
+[package]
+name = "photostudio-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core library of PhotoStudio: SQLite library, scanning, EXIF, non-destructive edits, thumbnails"
+license = "MIT"
+
+[dependencies]
+rusqlite = { version = "0.43", features = ["bundled", "backup"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+kamadak-exif = "0.6"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "tiff"] }
+walkdir = "2"
+sha2 = "0.11"
+hex = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
