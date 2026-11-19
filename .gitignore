@@ -1,8 +1,10 @@
 node_modules/
 dist/
+releases/
 src-tauri/target/
 src-tauri/gen/
-src-tauri/binaries/*.exe
+src-tauri/binaries/
+rust/target/
 *.log
 .DS_Store
 __pycache__/
