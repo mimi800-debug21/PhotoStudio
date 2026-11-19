@@ -544,6 +544,22 @@ impl Db {
         })
     }
 
+    /// All export records (used to validate read_export_bytes paths).
+    pub fn list_exports_all(&self) -> Result<Vec<ExportRecord>> {
+        let mut stmt =
+            self.conn.prepare("SELECT id, photo_id, out_path, kind, created_at FROM exports ORDER BY id")?;
+        let rows = stmt.query_map([], |r| {
+            Ok(ExportRecord {
+                id: r.get(0)?,
+                photo_id: r.get(1)?,
+                out_path: r.get(2)?,
+                kind: r.get(3)?,
+                created_at: r.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
     pub fn list_exports(&self, photo_id: i64) -> Result<Vec<ExportRecord>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, photo_id, out_path, kind, created_at FROM exports WHERE photo_id = ?1 ORDER BY id DESC",

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PhotoStudio",
+  "version": "0.1.0",
+  "identifier": "com.photostudio.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "PhotoStudio",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 600,
+        "resizable": true,
+        "maximizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "externalBin": ["binaries/ai-worker"],
+    "category": "Photography",
+    "shortDescription": "Local photo library, editor and AI upscaling",
+    "longDescription": "PhotoStudio is a fully local Windows desktop app: photo library with EXIF metadata, non-destructive editing and export, albums, timeline, duplicate detection and local AI upscaling with Real-ESRGAN. No account, no cloud - all data stays on this PC.",
+    "copyright": "PhotoStudio contributors",
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English"],
+        "displayLanguageSelector": false
+      }
+    }
+  },
+  "plugins": {}
+}
