@@ -171,7 +171,7 @@ export default function SettingsView() {
           )}
           <p className="mt-3 text-[11px] leading-snug text-neutral-500">
             First-run setup downloads a private Python runtime and AI models into{" "}
-            <span className="font-mono">{aiStatus?.runtime_dir ?? "%APPDATA%\\PhotoStudio\\ai-runtime"}</span>.
+            <span className="font-mono">{aiStatus?.runtime_dir ?? "%APPDATA%\\com.photostudio.desktop\\ai-runtime"}</span>.
             No system Python, Node.js or CUDA toolkit is required or modified. Downloads are SHA-256 verified.
           </p>
         </Section>
