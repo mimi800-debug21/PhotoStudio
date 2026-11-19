@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use photostudio_core::db::{Album, Db, DuplicateGroup, ExportRecord, ImportedFolder, Photo, PhotoFilter, PhotoList};
+use photostudio_core::db::{Album, DuplicateGroup, ExportRecord, ImportedFolder, Photo, PhotoFilter, PhotoList};
 use photostudio_core::edits::{self, EditParams};
 use photostudio_core::paths;
 use photostudio_core::scan::{self, ImportResult};
@@ -29,7 +29,7 @@ pub struct AppInfo {
 }
 
 #[tauri::command]
-fn app_info(state: State<S>) -> AppInfo {
+pub fn app_info(state: State<'_, S>) -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
         app_data_dir: state.app_data.to_string_lossy().to_string(),
@@ -42,32 +42,32 @@ fn app_info(state: State<S>) -> AppInfo {
 
 // ---------------------------------------------------------------- dialogs
 
-fn fp_string(f: tauri::fs::FilePath) -> Option<String> {
+fn fp_string(f: tauri_plugin_dialog::FilePath) -> Option<String> {
     match f {
-        tauri::fs::FilePath::Path(p) => Some(p.to_string_lossy().to_string()),
+        tauri_plugin_dialog::FilePath::Path(p) => Some(p.to_string_lossy().to_string()),
         _ => None,
     }
 }
 
 #[tauri::command]
-async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
+pub async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
-    let (tx, mut rx) = tauri::async_runtime::channel::<Option<tauri::fs::FilePath>>(1);
+    let (tx, mut rx) = tauri::async_runtime::channel::<Option<tauri_plugin_dialog::FilePath>>(1);
     app.dialog().file().pick_folder(move |f| {
         let _ = tx.try_send(f);
     });
-    let res = rx.recv().await.map_err(|e| e.to_string())?;
+    let res = rx.recv().await.ok_or("dialog cancelled")?;
     Ok(res.and_then(fp_string))
 }
 
 #[tauri::command]
-async fn pick_save_file(
+pub async fn pick_save_file(
     app: tauri::AppHandle,
     suggested_name: String,
     default_dir: Option<String>,
 ) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
-    let (tx, mut rx) = tauri::async_runtime::channel::<Option<tauri::fs::FilePath>>(1);
+    let (tx, mut rx) = tauri::async_runtime::channel::<Option<tauri_plugin_dialog::FilePath>>(1);
     let mut b = app.dialog().file();
     b = b.set_file_name(&suggested_name);
     if let Some(d) = &default_dir {
@@ -78,14 +78,15 @@ async fn pick_save_file(
     b.save_file(move |f| {
         let _ = tx.try_send(f);
     });
-    let res = rx.recv().await.map_err(|e| e.to_string())?;
+    let res = rx.recv().await.ok_or("dialog cancelled")?;
     Ok(res.and_then(fp_string))
 }
 
 // ---------------------------------------------------------------- import
 
 #[tauri::command]
-async fn import_folder(state: State<S>, path: String, recursive: bool) -> Result<ImportResult, String> {
+pub async fn import_folder(state: State<'_, S>, path: String, recursive: bool) -> Result<ImportResult, String> {
+    let state = Arc::clone(state.inner());
     tauri::async_runtime::spawn_blocking(move || {
         let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
         scan::scan_folder(&db, Path::new(&path), recursive).map_err(|e| e.to_string())
@@ -95,24 +96,25 @@ async fn import_folder(state: State<S>, path: String, recursive: bool) -> Result
 }
 
 #[tauri::command]
-fn list_imported_folders(state: State<S>) -> Result<Vec<ImportedFolder>, String> {
+pub fn list_imported_folders(state: State<'_, S>) -> Result<Vec<ImportedFolder>, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.list_imported_folders().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn remove_imported_folder(state: State<S>, id: i64) -> Result<(), String> {
+pub fn remove_imported_folder(state: State<'_, S>, id: i64) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.remove_imported_folder(id).map(|_| ()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn rescan_folder(state: State<S>, id: i64) -> Result<ImportResult, String> {
+pub async fn rescan_folder(state: State<'_, S>, id: i64) -> Result<ImportResult, String> {
     let (path, recursive) = {
         let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
         let f = db.get_imported_folder(id).map_err(|e| e.to_string())?.ok_or("folder not found")?;
         (f.path, f.recursive)
     };
+    let state = Arc::clone(state.inner());
     tauri::async_runtime::spawn_blocking(move || {
         let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
         scan::scan_folder(&db, Path::new(&path), recursive).map_err(|e| e.to_string())
@@ -124,25 +126,25 @@ async fn rescan_folder(state: State<S>, id: i64) -> Result<ImportResult, String>
 // ---------------------------------------------------------------- photos
 
 #[tauri::command]
-fn list_photos(state: State<S>, query: PhotoFilter) -> Result<PhotoList, String> {
+pub fn list_photos(state: State<'_, S>, query: PhotoFilter) -> Result<PhotoList, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.list_photos(&query).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_photo(state: State<S>, id: i64) -> Result<Photo, String> {
+pub fn get_photo(state: State<'_, S>, id: i64) -> Result<Photo, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.get_photo(id).map_err(|e| e.to_string())?.ok_or_else(|| "photo not found".to_string())
 }
 
 #[tauri::command]
-fn set_favorite(state: State<S>, id: i64, favorite: bool) -> Result<(), String> {
+pub fn set_favorite(state: State<'_, S>, id: i64, favorite: bool) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.set_favorite(id, favorite).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn find_duplicates(state: State<S>) -> Result<Vec<DuplicateGroup>, String> {
+pub fn find_duplicates(state: State<'_, S>) -> Result<Vec<DuplicateGroup>, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.find_duplicates().map_err(|e| e.to_string())
 }
@@ -159,7 +161,7 @@ fn validated_photo_path(state: &AppState, id: i64) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-async fn get_thumbnail(state: State<S>, id: i64, size: u32) -> Result<Vec<u8>, String> {
+pub async fn get_thumbnail(state: State<'_, S>, id: i64, size: u32) -> Result<Vec<u8>, String> {
     let (path, thumb_dir) = {
         let p = validated_photo_path(&state, id)?;
         (p, state.thumb.dir.clone())
@@ -173,7 +175,7 @@ async fn get_thumbnail(state: State<S>, id: i64, size: u32) -> Result<Vec<u8>, S
 }
 
 #[tauri::command]
-async fn get_image_bytes(state: State<S>, id: i64) -> Result<Vec<u8>, String> {
+pub async fn get_image_bytes(state: State<'_, S>, id: i64) -> Result<Vec<u8>, String> {
     let path = validated_photo_path(&state, id)?;
     tauri::async_runtime::spawn_blocking(move || {
         std::fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))
@@ -185,7 +187,7 @@ async fn get_image_bytes(state: State<S>, id: i64) -> Result<Vec<u8>, String> {
 // ---------------------------------------------------------------- edits
 
 #[tauri::command]
-fn get_edits(state: State<S>, id: i64) -> Result<Option<EditParams>, String> {
+pub fn get_edits(state: State<'_, S>, id: i64) -> Result<Option<EditParams>, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     match db.get_edits(id).map_err(|e| e.to_string())? {
         None => Ok(None),
@@ -194,14 +196,14 @@ fn get_edits(state: State<S>, id: i64) -> Result<Option<EditParams>, String> {
 }
 
 #[tauri::command]
-fn save_edits(state: State<S>, id: i64, params: EditParams) -> Result<(), String> {
+pub fn save_edits(state: State<'_, S>, id: i64, params: EditParams) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     let json = serde_json::to_string(&params).map_err(|e| e.to_string())?;
     db.save_edits(id, &json).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn render_preview(state: State<S>, id: i64, params: EditParams, max_dim: u32) -> Result<Vec<u8>, String> {
+pub async fn render_preview(state: State<'_, S>, id: i64, params: EditParams, max_dim: u32) -> Result<Vec<u8>, String> {
     let path = validated_photo_path(&state, id)?;
     tauri::async_runtime::spawn_blocking(move || {
         edits::render(&path, &params, max_dim).map_err(|e| e.to_string())
@@ -211,21 +213,20 @@ async fn render_preview(state: State<S>, id: i64, params: EditParams, max_dim: u
 }
 
 #[tauri::command]
-async fn export_photo(state: State<S>, id: i64, params: EditParams, out_path: String) -> Result<ExportRecord, String> {
+pub async fn export_photo(state: State<'_, S>, id: i64, params: EditParams, out_path: String) -> Result<ExportRecord, String> {
     let path = validated_photo_path(&state, id)?;
     let out = PathBuf::from(&out_path);
-    let rec = tauri::async_runtime::spawn_blocking(move || -> Result<ExportRecord, String> {
-        edits::export_file(&path, &params, &out).map_err(|e| e.to_string())?;
-        Ok((out_path, id))
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
+        edits::export_file(&path, &params, &out).map(|_| ()).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())??;
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
-    db.add_export(rec.1, &rec.0, "edit").map_err(|e| e.to_string())
+    db.add_export(id, &out_path, "edit").map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn list_exports(state: State<S>, id: i64) -> Result<Vec<ExportRecord>, String> {
+pub fn list_exports(state: State<'_, S>, id: i64) -> Result<Vec<ExportRecord>, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.list_exports(id).map_err(|e| e.to_string())
 }
@@ -233,7 +234,7 @@ fn list_exports(state: State<S>, id: i64) -> Result<Vec<ExportRecord>, String> {
 /// Read bytes of a previously exported file (must be a recorded export or
 /// live under the app data dir).
 #[tauri::command]
-async fn read_export_bytes(state: State<S>, path: String) -> Result<Vec<u8>, String> {
+pub async fn read_export_bytes(state: State<'_, S>, path: String) -> Result<Vec<u8>, String> {
     let allowed = {
         let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
         let recorded = db
@@ -257,37 +258,37 @@ async fn read_export_bytes(state: State<S>, path: String) -> Result<Vec<u8>, Str
 // ---------------------------------------------------------------- albums
 
 #[tauri::command]
-fn list_albums(state: State<S>) -> Result<Vec<Album>, String> {
+pub fn list_albums(state: State<'_, S>) -> Result<Vec<Album>, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.list_albums().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn create_album(state: State<S>, name: String) -> Result<Album, String> {
+pub fn create_album(state: State<'_, S>, name: String) -> Result<Album, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.create_album(&name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn delete_album(state: State<S>, id: i64) -> Result<(), String> {
+pub fn delete_album(state: State<'_, S>, id: i64) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.delete_album(id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn add_to_album(state: State<S>, album_id: i64, photo_id: i64) -> Result<(), String> {
+pub fn add_to_album(state: State<'_, S>, album_id: i64, photo_id: i64) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.add_to_album(album_id, photo_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn remove_from_album(state: State<S>, album_id: i64, photo_id: i64) -> Result<(), String> {
+pub fn remove_from_album(state: State<'_, S>, album_id: i64, photo_id: i64) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.remove_from_album(album_id, photo_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn album_contains(state: State<S>, album_id: i64, photo_id: i64) -> Result<bool, String> {
+pub fn album_contains(state: State<'_, S>, album_id: i64, photo_id: i64) -> Result<bool, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.album_contains(album_id, photo_id).map_err(|e| e.to_string())
 }
@@ -295,22 +296,22 @@ fn album_contains(state: State<S>, album_id: i64, photo_id: i64) -> Result<bool,
 // ---------------------------------------------------------------- AI
 
 #[tauri::command]
-fn ai_status(state: State<S>) -> ai_worker::proto::AiStatus {
+pub fn ai_status(state: State<'_, S>) -> ai_worker::proto::AiStatus {
     ai::status(&state)
 }
 
 #[tauri::command]
-fn ai_start_setup(state: State<S>) -> Result<(), String> {
+pub fn ai_start_setup(state: State<'_, S>) -> Result<(), String> {
     ai::call(&state, "setup", Value::Null).map(|_| ())
 }
 
 #[tauri::command]
-fn ai_cancel_setup(state: State<S>) -> Result<(), String> {
+pub fn ai_cancel_setup(state: State<'_, S>) -> Result<(), String> {
     ai::call(&state, "cancel_setup", Value::Null).map(|_| ())
 }
 
 #[tauri::command]
-fn ai_self_test(state: State<S>) -> Result<ai_worker::proto::AiStatus, String> {
+pub fn ai_self_test(state: State<'_, S>) -> Result<ai_worker::proto::AiStatus, String> {
     ai::call(&state, "selftest", Value::Null)?;
     // give the sidecar a moment to persist selftest.json, then read status
     std::thread::sleep(std::time::Duration::from_millis(300));
@@ -320,7 +321,7 @@ fn ai_self_test(state: State<S>) -> Result<ai_worker::proto::AiStatus, String> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct AiEnhanceParams {
+pub struct AiEnhanceParams {
     photo_id: i64,
     model: String,
     scale: u64,
@@ -330,7 +331,7 @@ struct AiEnhanceParams {
 }
 
 #[tauri::command]
-fn ai_enhance(state: State<S>, params: AiEnhanceParams) -> Result<String, String> {
+pub fn ai_enhance(state: State<'_, S>, params: AiEnhanceParams) -> Result<String, String> {
     let input = validated_photo_path(&state, params.photo_id)?;
     let v = ai::call(
         &state,
@@ -348,12 +349,12 @@ fn ai_enhance(state: State<S>, params: AiEnhanceParams) -> Result<String, String
 }
 
 #[tauri::command]
-fn ai_cancel_job(state: State<S>, job_id: String) -> Result<(), String> {
+pub fn ai_cancel_job(state: State<'_, S>, job_id: String) -> Result<(), String> {
     ai::call(&state, "cancel_job", serde_json::json!({ "job_id": job_id })).map(|_| ())
 }
 
 #[tauri::command]
-fn ai_open_runtime_dir(state: State<S>) -> Result<(), String> {
+pub fn ai_open_runtime_dir(state: State<'_, S>) -> Result<(), String> {
     let dir = state.runtime_dir.clone();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let mut cmd = if cfg!(windows) {
@@ -376,19 +377,19 @@ fn ai_open_runtime_dir(state: State<S>) -> Result<(), String> {
 // ---------------------------------------------------------------- settings
 
 #[tauri::command]
-fn get_setting(state: State<S>, key: String) -> Result<Option<String>, String> {
+pub fn get_setting(state: State<'_, S>, key: String) -> Result<Option<String>, String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.get_setting(&key).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn set_setting(state: State<S>, key: String, value: String) -> Result<(), String> {
+pub fn set_setting(state: State<'_, S>, key: String, value: String) -> Result<(), String> {
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;
     db.set_setting(&key, &value).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn backup_database(state: State<S>) -> Result<String, String> {
+pub fn backup_database(state: State<'_, S>) -> Result<String, String> {
     let ts = photostudio_core::db::now_string().replace([' ', ':'], "-");
     let dest = state.app_data.join("backups").join(format!("photostudio-{ts}.db"));
     let db = state.db.lock().map_err(|_| "db lock poisoned".to_string())?;

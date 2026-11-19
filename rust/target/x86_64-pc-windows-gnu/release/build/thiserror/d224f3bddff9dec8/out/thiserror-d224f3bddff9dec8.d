@@ -1,0 +1,14 @@
+/home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/d224f3bddff9dec8/out/thiserror-d224f3bddff9dec8.d: /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/8b12580b7a10574c/out/private.rs
+
+/home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/d224f3bddff9dec8/out/libthiserror-d224f3bddff9dec8.rlib: /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/8b12580b7a10574c/out/private.rs
+
+/home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/d224f3bddff9dec8/out/libthiserror-d224f3bddff9dec8.rmeta: /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/8b12580b7a10574c/out/private.rs
+
+/home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs:
+/home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs:
+/home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs:
+/home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs:
+/home/pi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs:
+/home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/8b12580b7a10574c/out/private.rs:
+
+# env-dep:OUT_DIR=/home/pi/PhotoStudio/rust/target/x86_64-pc-windows-gnu/release/build/thiserror/8b12580b7a10574c/out

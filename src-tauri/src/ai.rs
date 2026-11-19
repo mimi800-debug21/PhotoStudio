@@ -1,7 +1,6 @@
 //! Bridge to the `ai-worker` sidecar process (local Real-ESRGAN runtime).
 
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use ai_worker::client::SidecarClient;
 use ai_worker::proto::AiStatus;
@@ -26,10 +25,9 @@ pub fn find_sidecar_exe() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = exe.parent().ok_or("no exe dir")?;
     // Tauri bundles externalBin as `ai-worker-<target-triple>[.exe]`
-    let triple = env!("TARGET");
     let candidates = [
-        format!("ai-worker-{triple}.exe"),
-        format!("ai-worker-{triple}"),
+        "ai-worker-x86_64-pc-windows-msvc.exe".to_string(),
+        "ai-worker-x86_64-pc-windows-gnu.exe".to_string(),
         "ai-worker.exe".to_string(),
         "ai-worker".to_string(),
     ];
@@ -96,8 +94,4 @@ fn fallback_status(state: &AppState, error: &str) -> AiStatus {
         runtime_dir: Some(state.runtime_dir.to_string_lossy().to_string()),
         models: vec![],
     }
-}
-
-pub fn ai_mutex(state: &AppState) -> &Mutex<Option<AiManager>> {
-    &state.ai
 }
